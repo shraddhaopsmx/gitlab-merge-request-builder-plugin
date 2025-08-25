@@ -36,7 +36,7 @@
     <repositories>
         <repository>
             <id>repo.jenkins-ci.org</id>
-            <url>http://repo.jenkins-ci.org/public/</url>
+            <url>https://repo.jenkins-ci.org/public/</url>
         </repository>
     </repositories>
 
@@ -55,26 +55,21 @@
           <scope>test</scope>
       </dependency>
       <dependency>
-          <groupId>commons-httpclient</groupId>
-          <artifactId>commons-httpclient</artifactId>
-          <version>3.1</version>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpclient</artifactId>
+          <version>4.5.14</version>
       </dependency>
       <dependency>
-          <groupId>org.codehaus.jackson</groupId>
-          <artifactId>jackson-mapper-asl</artifactId>
-          <version>1.9.9</version>
-      </dependency>
-      <dependency>
-          <groupId>org.gitlab</groupId>
-          <artifactId>java-gitlab-api</artifactId>
-          <version>1.1.1</version>
+          <groupId>org.gitlab4j</groupId>
+          <artifactId>gitlab4j-api</artifactId>
+          <version>6.1.0</version>
       </dependency>
   </dependencies>
 
     <pluginRepositories>
         <pluginRepository>
             <id>repo.jenkins-ci.org</id>
-            <url>http://repo.jenkins-ci.org/public/</url>
+            <url>https://repo.jenkins-ci.org/public/</url>
         </pluginRepository>
     </pluginRepositories>
 </project>
