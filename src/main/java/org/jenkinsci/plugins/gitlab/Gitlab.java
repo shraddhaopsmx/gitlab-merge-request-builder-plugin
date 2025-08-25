@@ -1,20 +1,28 @@
 package org.jenkinsci.plugins.gitlab;
 
-import org.gitlab.api.GitlabAPI;
+import org.gitlab4j.api.GitLabApi;
+import org.gitlab4j.api.GitLabApiException;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 /**
- * GitlabAPI Wrapper Class
+ * GitLab4J API Wrapper Class
  */
 public class Gitlab {
-    private GitlabAPI _api;
+    private static final Logger _logger = Logger.getLogger(Gitlab.class.getName());
+    private GitLabApi _api;
 
     private void connect() {
         String privateToken = GitlabBuildTrigger.getDesc().getBotApiToken();
         String apiUrl = GitlabBuildTrigger.getDesc().getGitlabHostUrl();
-        _api = GitlabAPI.connect(apiUrl, privateToken);
+        try {
+            _api = new GitLabApi(apiUrl, privateToken);
+        } catch (Exception e) {
+            _logger.log(Level.SEVERE, "Failed to connect to GitLab API at " + apiUrl, e);
+        }
     }
 
-    public GitlabAPI get() {
+    public GitLabApi get() {
         if (_api == null) {
             connect();
         }

@@ -6,11 +6,12 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.gitlab.api.GitlabAPI;
-import org.gitlab.api.models.GitlabCommit;
-import org.gitlab.api.models.GitlabMergeRequest;
-import org.gitlab.api.models.GitlabNote;
-import org.gitlab.api.models.GitlabProject;
+import org.gitlab4j.api.GitLabApi;
+import org.gitlab4j.api.GitLabApiException;
+import org.gitlab4j.api.models.Commit;
+import org.gitlab4j.api.models.MergeRequest;
+import org.gitlab4j.api.models.Note;
+import org.gitlab4j.api.models.Project;
 
 public class GitlabMergeRequestWrapper {
 
@@ -22,11 +23,11 @@ public class GitlabMergeRequestWrapper {
 
     private boolean _shouldRun = false;
 
-    transient private GitlabProject _project;
+    transient private Project _project;
     transient private GitlabMergeRequestBuilder _builder;
 
 
-    GitlabMergeRequestWrapper(GitlabMergeRequest mergeRequest, GitlabMergeRequestBuilder builder, GitlabProject project) {
+    GitlabMergeRequestWrapper(MergeRequest mergeRequest, GitlabMergeRequestBuilder builder, Project project) {
         _id = mergeRequest.getId();
         _author = mergeRequest.getAuthor().getUsername();
         _source = mergeRequest.getSourceBranch();
@@ -35,12 +36,12 @@ public class GitlabMergeRequestWrapper {
         _builder = builder;
     }
 
-    public void init(GitlabMergeRequestBuilder builder, GitlabProject project) {
+    public void init(GitlabMergeRequestBuilder builder, Project project) {
         _project = project;
         _builder = builder;
     }
 
-    public void check(GitlabMergeRequest gitlabMergeRequest) {
+    public void check(MergeRequest gitlabMergeRequest) {
         if (_target == null) {
             _target = gitlabMergeRequest.getTargetBranch();
         }
@@ -50,20 +51,20 @@ public class GitlabMergeRequestWrapper {
         }
 
         try {
-            GitlabAPI api = _builder.getGitlab().get();
-            GitlabNote lastJenkinsNote = getJenkinsNote(gitlabMergeRequest, api);
+            GitLabApi api = _builder.getGitlab().get();
+            Note lastJenkinsNote = getJenkinsNote(gitlabMergeRequest, api);
 
             if (lastJenkinsNote == null) {
                 _shouldRun = true;
             } else {
-                GitlabCommit latestCommit = getLatestCommit(gitlabMergeRequest, api);
+                Commit latestCommit = getLatestCommit(gitlabMergeRequest, api);
 
                 if (latestCommit != null) {
                     _shouldRun = latestCommit.getCreatedAt().after(lastJenkinsNote.getCreatedAt());
                 }
             }
-        } catch (IOException e) {
-            _logger.log(Level.SEVERE, "Failed to fetch commits for Merge Request " + gitlabMergeRequest.getId());
+        } catch (GitLabApiException e) {
+            _logger.log(Level.SEVERE, "Failed to fetch commits for Merge Request " + gitlabMergeRequest.getId(), e);
         }
 
         if (_shouldRun) {
@@ -71,18 +72,18 @@ public class GitlabMergeRequestWrapper {
         }
     }
 
-    private GitlabNote getJenkinsNote(GitlabMergeRequest gitlabMergeRequest, GitlabAPI api) throws IOException {
-        List<GitlabNote> notes = api.getAllNotes(gitlabMergeRequest);
-        GitlabNote lastJenkinsNote = null;
+    private Note getJenkinsNote(MergeRequest gitlabMergeRequest, GitLabApi api) throws GitLabApiException {
+        List<Note> notes = api.getNotesApi().getMergeRequestNotes(_project.getId(), gitlabMergeRequest.getIid());
+        Note lastJenkinsNote = null;
 
         if (!notes.isEmpty()) {
-            Collections.sort(notes, new Comparator<GitlabNote>() {
-                public int compare(GitlabNote o1, GitlabNote o2) {
+            Collections.sort(notes, new Comparator<Note>() {
+                public int compare(Note o1, Note o2) {
                     return o2.getCreatedAt().compareTo(o1.getCreatedAt());
                 }
             });
 
-            for (GitlabNote note : notes) {
+            for (Note note : notes) {
                 if (note.getAuthor().getUsername().equals(GitlabBuildTrigger.getDesc().getBotUsername())) {
                     lastJenkinsNote = note;
                     break;
@@ -92,10 +93,10 @@ public class GitlabMergeRequestWrapper {
         return lastJenkinsNote;
     }
 
-    private GitlabCommit getLatestCommit(GitlabMergeRequest gitlabMergeRequest, GitlabAPI api) throws IOException {
-        List<GitlabCommit> commits = api.getCommits(gitlabMergeRequest);
-        Collections.sort(commits, new Comparator<GitlabCommit>() {
-            public int compare(GitlabCommit o1, GitlabCommit o2) {
+    private Commit getLatestCommit(MergeRequest gitlabMergeRequest, GitLabApi api) throws GitLabApiException {
+        List<Commit> commits = api.getMergeRequestApi().getCommits(_project.getId(), gitlabMergeRequest.getIid());
+        Collections.sort(commits, new Comparator<Commit>() {
+            public int compare(Commit o1, Commit o2) {
                 return o2.getCreatedAt().compareTo(o1.getCreatedAt());
             }
         });
@@ -124,14 +125,10 @@ public class GitlabMergeRequestWrapper {
         return _target;
     }
 
-    public GitlabNote createNote(String message) {
-        GitlabMergeRequest mergeRequest = new GitlabMergeRequest();
-        mergeRequest.setId(_id);
-        mergeRequest.setProjectId(_project.getId());
-
+    public Note createNote(String message) {
         try {
-            return _builder.getGitlab().get().createNote(mergeRequest, message);
-        } catch (IOException e) {
+            return _builder.getGitlab().get().getNotesApi().createMergeRequestNote(_project.getId(), _id, message);
+        } catch (GitLabApiException e) {
             _logger.log(Level.SEVERE, "Failed to create note for merge request " + _id, e);
             return null;
         }

@@ -7,9 +7,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.gitlab.api.models.GitlabMergeRequest;
-import org.gitlab.api.models.GitlabNote;
-import org.gitlab.api.models.GitlabProject;
+import org.gitlab4j.api.GitLabApi;
+import org.gitlab4j.api.GitLabApiException;
+import org.gitlab4j.api.Constants;
+import org.gitlab4j.api.models.MergeRequest;
+import org.gitlab4j.api.models.Note;
+import org.gitlab4j.api.models.Project;
 
 public class GitlabRepository {
 
@@ -17,7 +20,7 @@ public class GitlabRepository {
     private String _projectPath;
 
     private Map<Integer, GitlabMergeRequestWrapper> _mergeRequests;
-    private GitlabProject _project;
+    private Project _project;
     private GitlabMergeRequestBuilder _builder;
 
     public GitlabRepository(String projectPath, GitlabMergeRequestBuilder builder, Map<Integer, GitlabMergeRequestWrapper> mergeRequests) {
@@ -51,17 +54,17 @@ public class GitlabRepository {
             return;
         }
 
-        List<GitlabMergeRequest> mergeRequests;
+        List<MergeRequest> mergeRequests;
         try {
-            mergeRequests = _builder.getGitlab().get().getOpenMergeRequests(_project);
-        } catch (IOException e) {
+            mergeRequests = _builder.getGitlab().get().getMergeRequestApi().getMergeRequests(_project.getId(), Constants.MergeRequestState.OPENED);
+        } catch (GitLabApiException e) {
             _logger.log(Level.SEVERE, "Could not retrieve merge requests.", e);
             return;
         }
 
         Set<Integer> closedMergedRequests = new HashSet<Integer>(_mergeRequests.keySet());
 
-        for (GitlabMergeRequest mergeRequest : mergeRequests) {
+        for (MergeRequest mergeRequest : mergeRequests) {
             check(mergeRequest);
             closedMergedRequests.remove(mergeRequest.getId());
         }
@@ -69,7 +72,7 @@ public class GitlabRepository {
         removeClosed(closedMergedRequests, _mergeRequests);
     }
 
-    private void check(GitlabMergeRequest gitlabMergeRequest) {
+    private void check(MergeRequest gitlabMergeRequest) {
         Integer id = gitlabMergeRequest.getId();
         GitlabMergeRequestWrapper mergeRequest;
 
@@ -93,33 +96,30 @@ public class GitlabRepository {
         }
     }
 
-    private GitlabProject getProjectForPath(String path) {
+    private Project getProjectForPath(String path) {
         try {
-            List<GitlabProject> projects = _builder.getGitlab().get().getAllProjects();
-            for (GitlabProject project : projects) {
+            List<Project> projects = _builder.getGitlab().get().getProjectApi().getProjects();
+            for (Project project : projects) {
                 if (project.getPathWithNamespace().equals(path)) {
                     return project;
                 }
             }
-        } catch (IOException e) {
-            _logger.log(Level.SEVERE, "Could not retrieve Project with path: " + path + " (Have you properly configured the project path?)");
+        } catch (GitLabApiException e) {
+            _logger.log(Level.SEVERE, "Could not retrieve Project with path: " + path + " (Have you properly configured the project path?)", e);
         }
         return null;
     }
 
     public String getProjectUrl() {
-        try {
-            return _builder.getGitlab().get().getUrl(_project.getPathWithNamespace()).toString();
-        } catch (IOException e) {
-            return null;
-        }
+        // GitLab4J Project model directly provides the web URL
+        return _project.getWebUrl();
     }
 
     public String getMergeRequestUrl(Integer mergeRequestId) {
-        return getProjectUrl() + GitlabMergeRequest.URL + "/" + mergeRequestId;
+        return getProjectUrl() + "/-/merge_requests/" + mergeRequestId;
     }
 
-    public GitlabNote createNote(Integer mergeRequestId, String message) {
+    public Note createNote(Integer mergeRequestId, String message) {
         GitlabMergeRequestWrapper gitlabMergeRequestWrapper = _mergeRequests.get(mergeRequestId);
         return gitlabMergeRequestWrapper.createNote(message);
     }
