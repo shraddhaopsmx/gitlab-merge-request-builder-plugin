@@ -31,6 +31,9 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Secure XML parsing settings to prevent XXE attacks -->
+        <javax.xml.accessExternalDTD>none</javax.xml.accessExternalDTD>
+        <javax.xml.accessExternalSchema>none</javax.xml.accessExternalSchema>
     </properties>
 
     <repositories>
@@ -59,15 +62,44 @@
           <artifactId>commons-httpclient</artifactId>
           <version>3.1</version>
       </dependency>
+      <!-- Replaced org.codehaus.jackson:jackson-mapper-asl with FasterXML Jackson to fix CVE-2019-10172 -->
       <dependency>
-          <groupId>org.codehaus.jackson</groupId>
-          <artifactId>jackson-mapper-asl</artifactId>
-          <version>1.9.9</version>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-core</artifactId>
+          <version>2.15.2</version>
       </dependency>
+      <dependency>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+          <version>2.15.2</version>
+      </dependency>
+      <dependency>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-annotations</artifactId>
+          <version>2.15.2</version>
+      </dependency>
+      <!-- Add XML processing module with secure XXE handling -->
+      <dependency>
+          <groupId>com.fasterxml.jackson.dataformat</groupId>
+          <artifactId>jackson-dataformat-xml</artifactId>
+          <version>2.15.2</version>
+      </dependency>
+      <!-- Updated to latest version of java-gitlab-api for better compatibility with FasterXML Jackson -->
       <dependency>
           <groupId>org.gitlab</groupId>
           <artifactId>java-gitlab-api</artifactId>
-          <version>1.1.1</version>
+          <version>4.1.1</version>
+          <!-- Exclude any transitive jackson-mapper-asl dependencies to prevent CVE-2019-10172 -->
+          <exclusions>
+              <exclusion>
+                  <groupId>org.codehaus.jackson</groupId>
+                  <artifactId>jackson-mapper-asl</artifactId>
+              </exclusion>
+              <exclusion>
+                  <groupId>org.codehaus.jackson</groupId>
+                  <artifactId>jackson-core-asl</artifactId>
+              </exclusion>
+          </exclusions>
       </dependency>
   </dependencies>
 
